@@ -1,0 +1,81 @@
+import { ServiceStatusDTO } from "../../models/status-monitor/ServiceStatusDTO";
+import { PiCheckCircleFill, PiWarningOctagonFill } from "react-icons/pi";
+
+interface Props {
+    service: ServiceStatusDTO;
+}
+
+export default function UptimeBar({ service }: Props) {
+    const isDown = service.isDown;
+    const statusColor = isDown ? "text-[#dc2626]" : "text-[#007a55]";
+    const borderColor = isDown ? "border-[rgba(220,38,38,0.3)]" : "border-[rgba(0,122,85,0.3)]";
+    const bgColor = isDown ? "bg-[rgba(220,38,38,0.1)]" : "bg-[rgba(0,122,85,0.1)]";
+    
+    const StatusIcon = isDown ? PiWarningOctagonFill : PiCheckCircleFill;
+    const statusText = isDown ? "OUTAGE DETECTED" : "OPERATIONAL";
+
+    return (
+        <div className="bg-white rounded-[14px] border-2 border-gray-300 p-4! shadow-sm hover:border-gray-400 transition-all">
+            
+            {/* Header: Service Name + Status Badge */}
+            <div className="flex justify-between items-center mb-4!">
+                <h3 className="text-gray-800 text-[16px] font-semibold m-0">{service.serviceName}</h3>
+                
+                <div className={`flex items-center gap-2 px-3! py-1.5! rounded-[8px] border ${borderColor} ${bgColor}`}>
+                    <StatusIcon className={statusColor} size={18} />
+                    <span className={`text-[11px] font-bold uppercase tracking-wider ${statusColor}`}>
+                        {statusText}
+                    </span>
+                </div>
+            </div>
+
+            {/* Uptime History Section */}
+            <div className="mt-3!">
+                <div className="flex justify-between text-[11px] text-gray-400 mb-2! font-semibold uppercase tracking-wider">
+                    <span>30 days ago</span>
+                    <span>Today</span>
+                </div>
+                
+                <div className="flex gap-[3px] h-10 w-full">
+                    {(service.history || Array(30).fill({ hasIncident: false })).map((day, index) => {
+                        let barColor = "bg-[#007a55]"; 
+                        let tooltipText = `${day.date || 'Day ' + (index + 1)}: Operational`;
+
+                        if (day.hasIncident) {
+                            barColor = "bg-[#eab308]"; 
+                            tooltipText = `${day.date || 'Day ' + (index + 1)}: Incident reported (${day.incidentCount || 1} times)`;
+                        }
+
+                        if (index === 29 && isDown) {
+                            barColor = "bg-[#dc2626]";
+                            tooltipText = "Today: Current Outage";
+                        }
+
+                        return (
+                            <div 
+                                key={index}
+                                className={`flex-1 rounded-[4px] ${barColor} hover:opacity-80 transition-all cursor-help relative group`}
+                            >
+                            <div className={`
+                                    absolute bottom-full mb-3 hidden group-hover:block
+                                    bg-white text-gray-800
+                                    py-3 px-4 rounded-lg border border-gray-300 shadow-xl
+                                    z-50 min-w-[160px] max-w-[220px]
+                                    ${index < 5 ? 'left-0' : index > 24 ? 'right-0' : 'left-1/2 -translate-x-1/2'}
+                                `}>
+                                    <div className="font-bold text-[12px] text-[#7c3aed] mb-2 text-center">
+                                        {tooltipText.split(':')[0]}
+                                    </div>
+                                    <div className="text-[11px] text-gray-600 text-center leading-relaxed">
+                                        {tooltipText.split(':')[1]?.trim()}
+                                    </div>
+                                </div>
+
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}

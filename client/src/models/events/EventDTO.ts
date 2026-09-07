@@ -1,0 +1,11 @@
+import { EventType } from "../../enums/EventType";
+
+export interface EventDTO {
+  id: number;
+  source: string;
+  type: EventType;
+  description: string;
+  timestamp: string;
+  ipAddress?: string;
+  user_id?: string,
+}
