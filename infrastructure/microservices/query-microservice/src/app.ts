@@ -1,0 +1,146 @@
+import express from 'express';
+import cors from 'cors';
+import 'reflect-metadata';
+import dotenv from 'dotenv';
+import { initialize_alert_database, initialize_mongo_database, initialize_mysql_database } from './Database/InitializeConnection';
+import { AlertDb, MongoDb, MySQLDb } from './Database/DbConnectionPool';
+import { CacheEntry } from './Domain/models/CacheEntry';
+import { Event } from './Domain/models/Event';
+import { MongoRepository, Repository } from 'typeorm';
+import { QueryRepositoryService } from './Services/QueryRepositoryService';
+import { QueryService } from './Services/QueryService';
+import { LoggerService } from './Services/LoggerService';
+import { QueryController } from './WebAPI/controllers/QueryController';
+import { QueryAlertContoller } from './WebAPI/controllers/QueryAlertController';
+import { saveQueryState } from './Utils/StateManager';
+import { Alert } from './Domain/models/Alert';
+import { QueryAlertRepositoryService } from './Services/QueryAlertRepositoryService';
+import { CacheAlertEntry } from './Domain/models/CacheAlertEntry';
+import { QueryAlertService } from './Services/QueryAlertService';
+import { saveQueryAlertState } from './Utils/StateAlertManager';
+import { QueryStatisticsService } from './Services/QueryStatisticsService';
+import { QueryStatisticsController } from './WebAPI/controllers/QueryStatisticsController';
+
+
+dotenv.config({ quiet: true });
+
+const app = express();
+
+// parsiranje JSON body-ja
+app.use(express.json());
+
+// CORS podešavanje iz .env
+const corsOrigin =
+  process.env.CORS_ORIGIN?.split(",").map((m) => m.trim()) ?? ["*"];
+
+const corsMethods =
+  process.env.CORS_METHODS?.split(",").map((m) => m.trim()) ??
+  ["GET", "POST", "DELETE", "OPTIONS"];
+
+app.use(
+  cors({
+    origin: corsOrigin,
+    methods: corsMethods,
+  }),
+);
+
+app.get("/health", async (req, res) => {
+  try {
+    // Proveravamo bazu
+    await MySQLDb.query("SELECT 1");
+    
+    res.status(200).json({
+      status: "OK",
+      service: "QueryService",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  } catch (err) {
+    res.status(503).json({ 
+      status: "DOWN", 
+      service: "QueryService",
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+let loggerService: LoggerService;
+let queryRepositoryService: QueryRepositoryService;
+let queryAlertRepositoryService : QueryAlertRepositoryService; 
+
+
+// inicijalizacija baza i servisa
+void (async () => {
+  await initialize_mongo_database();
+  await initialize_mysql_database();
+  await initialize_alert_database();
+
+  // ORM Repository
+  const cacheRepository : MongoRepository<CacheEntry> = MongoDb.getMongoRepository(CacheEntry);
+  const cacheAlertRepository : MongoRepository<CacheAlertEntry> = MongoDb.getMongoRepository(CacheAlertEntry);
+  const eventRepository : Repository<Event> = MySQLDb.getRepository(Event);
+  const alertRepository : Repository<Alert> = AlertDb.getRepository(Alert);
+  //const test = await alertRepository.find();
+  //console.log("EVENTS FROM DB:", test);
+
+  // Servisi
+  loggerService = new LoggerService();
+  queryRepositoryService = new QueryRepositoryService(cacheRepository, loggerService, eventRepository);
+  queryAlertRepositoryService = new QueryAlertRepositoryService(cacheAlertRepository, loggerService, alertRepository);
+  const queryService = new QueryService(queryRepositoryService, queryAlertRepositoryService);  
+  const queryAlertService = new QueryAlertService(queryAlertRepositoryService);
+  const queryStatisticsService = new QueryStatisticsService(loggerService, eventRepository, alertRepository);
+
+  // WebAPI rute
+  const queryController = new QueryController(queryService, queryRepositoryService, queryAlertRepositoryService);
+  const queryStatisticsController = new QueryStatisticsController(queryStatisticsService);
+  const queryAlertController = new QueryAlertContoller(queryAlertService, queryAlertRepositoryService);
+  
+  // Registracija ruta
+  app.use('/api/v1', queryController.getRouter());
+  app.use('/api/v1', queryStatisticsController.getRouter());
+  app.use('/api/v1', queryAlertController.getRouter());
+
+})();
+
+process.on('SIGINT', async () => {
+  try {
+    loggerService.log("Saving query service state before shutdown...");
+
+    // ako se inverted indeks struktura azurira => sacekaj da se zavrsi
+    while (queryRepositoryService.invertedIndexStructureForEvents.isIndexingInProgress()) {
+      loggerService.log("Indexing in progress, waiting to save state...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    saveQueryState({
+      lastProcessedId: queryRepositoryService.invertedIndexStructureForEvents.getLastProcessedId(),
+      invertedIndex: queryRepositoryService.invertedIndexStructureForEvents.getInvertedIndex(),
+      eventTokenMap: queryRepositoryService.invertedIndexStructureForEvents.getEventIdToTokens(),
+      eventCount: queryRepositoryService.getEventsCount(),
+      infoCount: queryRepositoryService.getInfoCount(),
+      warningCount: queryRepositoryService.getWarningCount(),
+      errorCount: queryRepositoryService.getErrorCount()
+    });
+    while (queryAlertRepositoryService.invertedIndexStructureForAlerts.isIndexingInProgress()) {
+      loggerService.log("Indexing in progress, waiting to save state...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  
+    saveQueryAlertState({
+      lastProcessedId: queryAlertRepositoryService.invertedIndexStructureForAlerts.getLastProcessedId(),
+      invertedIndex: queryAlertRepositoryService.invertedIndexStructureForAlerts.getInvertedIndex(),
+      alertTokenMap: queryAlertRepositoryService.invertedIndexStructureForAlerts.getAlertIdToTokens(),
+      alertCount: queryAlertRepositoryService.getAlertsCount()
+    });
+    loggerService.log("State saved. Exiting...");
+    
+    process.exit(0);
+  } catch(err){
+    loggerService.log(`Error during shutdown: ${err}`);
+    process.exit(1);
+  }
+  
+});
+
+export default app;

@@ -1,0 +1,7 @@
+export enum RecommendationCategory {
+  DETECTION = "DETECTION",
+  RESPONSE = "RESPONSE",
+  PREVENTION = "PREVENTION",
+  PROCESS = "PROCESS",
+  VISIBILITY = "VISIBILITY"
+}

@@ -1,0 +1,5 @@
+export enum SimulationType {
+  BRUTE_FORCE = "BRUTE_FORCE",
+  PRIVILEGE_ESCALATION = "PRIVILEGE_ESCALATION",
+  DDOS = "DDOS",
+}

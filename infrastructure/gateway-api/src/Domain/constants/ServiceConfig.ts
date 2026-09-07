@@ -1,0 +1,17 @@
+export const serviceConfig = {
+  auth: process.env.AUTH_SERVICE_API!,
+  user: process.env.USER_SERVICE_API!,
+  alert: process.env.ALERT_SERVICE_API!,
+  query: process.env.QUERY_SERVICE_API!,
+  siemAuth: process.env.SIEM_AUTH_SERVICE_API!,
+  storage: process.env.STORAGE_LOG_SERVICE_API!,
+  parser: process.env.PARSER_SERVICE_API!,
+  analysisEngine: process.env.ANALYSIS_ENGINE_SERVICE_API!,
+  event: process.env.EVENT_SERVICE_API!,
+  backup: process.env.BACKUP_SERVICE_API!,
+  insiderThreat: process.env.INSIDER_THREAT_SERVICE_API!,
+  riskScore: process.env.RISK_SCORE_API!,
+  integrity: process.env.INTEGRITY_SERVICE_API!,
+  securityMaturity: process.env.SECURITY_MATURITY_SERVICE_API!,
+  ueba: process.env.UEBA_SERVICE_API!,
+} as const;

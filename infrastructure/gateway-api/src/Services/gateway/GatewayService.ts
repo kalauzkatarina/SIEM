@@ -1,0 +1,557 @@
+import { IGatewayService } from "../../Domain/services/IGatewayService";
+import { LoginUserDTO } from "../../Domain/DTOs/LoginUserDTO";
+import { AuthResponseType } from "../../Domain/types/AuthResponse";
+import { AlertDTO } from "../../Domain/DTOs/AlertDTO";
+import { AlertQueryDTO } from "../../Domain/DTOs/AlertQueryDTO";
+import { PaginatedAlertsDTO } from "../../Domain/DTOs/PaginatedAlertsDTO";
+import { ArchiveStatsDTO } from "../../Domain/DTOs/ArchiveStatsDTO";
+import { EventDTO } from "../../Domain/DTOs/EventDTO";
+import { TopArchiveDTO } from "../../Domain/DTOs/TopArchiveDTO";
+import { ParserEventDto } from "../../Domain/DTOs/ParserEventDTO";
+import { ArchiveVolumeDTO } from "../../Domain/DTOs/ArchiveVolumeDTO";
+import { NormalizedEventDTO } from "../../Domain/DTOs/NormalizedEventDTO";
+import { LargestArchiveDTO } from "../../Domain/DTOs/LargestArchiveDTO";
+import { DistributionDTO } from "../../Domain/DTOs/DistributionDTO";
+import { TopSourceDTO } from "../../Domain/DTOs/TopSourceDTO";
+import { StorageLogResponseDTO } from "../../Domain/DTOs/StorageLogResponseDTO";
+import { EventsResultDTO } from "../../Domain/DTOs/EventsResultDTO";
+import { OTPVerificationDTO } from "../../Domain/DTOs/OtpVerificationDTO";
+import { AuthJwtResponse } from "../../Domain/types/AuthJwtResponse";
+import { IAuthGatewayService } from "../../Domain/services/IAuthGatewayService";
+import { IAlertGatewayService } from "../../Domain/services/IAlertGatewayService";
+import { IQueryGatewayService } from "../../Domain/services/IQueryGatewayService";
+import { IStorageGatewayService } from "../../Domain/services/IStorageGatewayService";
+import { IParserGatewayService } from "../../Domain/services/IParserGatewayService";
+import { IAnalysisGatewayService } from "../../Domain/services/IAnalysisGatewayService";
+import { IEventCollectorGatewayService } from "../../Domain/services/IEventCollectorGatewayService";
+import { OTPResendDTO } from "../../Domain/DTOs/OTPResendDTO";
+import { HourlyStatisticsDTO } from "../../Domain/DTOs/HourlyStatisticsDTO";
+import { IBackupGatewayService } from "../../Domain/services/IBackupGatewayService";
+import { BackupValidationLogDTO } from "../../Domain/DTOs/BackupValidationLogDTO";
+import { BackupValidationResultDTO } from "../../Domain/DTOs/BackupValidationResultDTO";
+import { IInsiderThreatGatewayService } from "../../Domain/services/IInsiderThreatGatewayService";
+import { InsiderThreatDTO } from "../../Domain/DTOs/InsiderThreatDTO";
+import {
+  PaginatedThreatsDTO,
+  ThreatQueryDTO,
+} from "../../Domain/DTOs/ThreatQueryDTO";
+import { UserRiskProfileDTO } from "../../Domain/DTOs/UserRiskProfileDTO";
+import { UserRiskAnalysisDTO } from "../../Domain/DTOs/UserRiskAnalysisDTO";
+import { RiskEntityType } from "../../Domain/enums/RiskEntityType";
+import { IRiskScoreGatewayService } from "../../Domain/services/IRiskScoreGatewayService";
+import { BackupHealthDTO } from "../../Domain/DTOs/BackupHealthDTO";
+import { BackupStatsDTO } from "../../Domain/DTOs/BackupStatsDTO";
+import { IIntegrityGatewayService } from "../../Domain/services/IIntegrityGatewayService";
+import { BusinessLLMInputDto } from "../../Domain/DTOs/businessInsights/BusinessLLMInputDto";
+import { BusinessResponseDto } from "../../Domain/DTOs/businessInsights/BusinessResponseDto";
+import { ISecurityMaturityGatewayService } from "../../Domain/services/ISecurityMaturityGatewayService";
+import { SecuirtyMaturityCurrentDTO } from "../../Domain/DTOs/SecurityMaturityCurrentDTO";
+import { SecurityMaturityTrendDTO } from "../../Domain/DTOs/SecurityMaturityTrendDTO";
+import { SecuirtyMaturityIncidentsByCategoryDTO } from "../../Domain/DTOs/SecurityMaturityIncidentsByCategoryDTO";
+import { SecurityMaturityRecommendationDTO } from "../../Domain/DTOs/SecurityMaturityRecommendationDTO";
+import { IUEBAGatewayService } from "../../Domain/services/IUEBAGatewayService";
+import { AnomalyResultDTO } from "../../Domain/DTOs/AnomalyResultDTO";
+
+/**
+ * Facade that delegates to domain-specific gateway services.
+ * Now uses Dependency Injection for better testability and SOLID compliance.
+ */
+export class GatewayService implements IGatewayService {
+  constructor(
+    private readonly authService: IAuthGatewayService,
+    private readonly alertService: IAlertGatewayService,
+    private readonly queryService: IQueryGatewayService,
+    private readonly storageService: IStorageGatewayService,
+    private readonly parserService: IParserGatewayService,
+    private readonly analysisService: IAnalysisGatewayService,
+    private readonly eventService: IEventCollectorGatewayService,
+    private readonly backupService: IBackupGatewayService,
+    private readonly insiderThreatService: IInsiderThreatGatewayService,
+    private readonly riskScoreService: IRiskScoreGatewayService,
+    private readonly integrityService: IIntegrityGatewayService,
+    private readonly securityMaturityService: ISecurityMaturityGatewayService,
+    private readonly uebaService: IUEBAGatewayService
+  ) { }
+  
+
+  // Event Collector
+  async createEvent(event: EventDTO): Promise<EventDTO> {
+    return await this.eventService.createEvent(event);
+  }
+
+  async getAll(): Promise<EventDTO[]> {
+    return await this.eventService.getAllEvents();
+  }
+
+  async getById(id: number): Promise<EventDTO> {
+    return await this.eventService.getEventById(id);
+  }
+
+  async deleteOldEvents(expiredIds: number[]): Promise<boolean> {
+    return await this.eventService.deleteOldEvents(expiredIds);
+  }
+  async getEventsFromId1ToId2(
+    fromId: number,
+    toId: number,
+  ): Promise<EventDTO[]> {
+    return await this.eventService.getEventsFromId1ToId2(fromId, toId);
+  }
+
+  async getSortedEventsByDate(): Promise<EventDTO[]> {
+    return await this.eventService.getSortedEventsByDate();
+  }
+
+  async getEventPercentagesByEvent(): Promise<DistributionDTO> {
+    return await this.eventService.getEventPercentagesByEvent();
+  }
+
+  async getTopSourceEvent(): Promise<TopSourceDTO> {
+    return await this.eventService.getTopSourceEvent();
+  }
+
+  // Parser
+  async log(
+    eventMessage: string,
+    eventSource: string,
+    ipAddress?: string,
+    userId?: number,
+    userRole?: string,
+  ): Promise<EventDTO> {
+    return this.parserService.log(
+      eventMessage,
+      eventSource,
+      ipAddress,
+      userId,
+      userRole,
+    );
+  }
+
+  async getAllParserEvents(): Promise<ParserEventDto[]> {
+    return this.parserService.getAllParserEvents();
+  }
+
+  async getParserEventById(id: number): Promise<ParserEventDto> {
+    return this.parserService.getParserEventById(id);
+  }
+
+  async deleteById(id: number): Promise<boolean> {
+    return this.parserService.deleteById(id);
+  }
+
+  // Auth microservice
+  async login(data: LoginUserDTO): Promise<AuthResponseType> {
+    return this.authService.login(data);
+  }
+
+  async verifyOtp(data: OTPVerificationDTO): Promise<AuthJwtResponse> {
+    return this.authService.verifyOtp(data);
+  }
+
+  async resendOtp(data: OTPResendDTO): Promise<AuthResponseType> {
+    return this.authService.resendOtp(data);
+  }
+
+  async validateToken(token: string): Promise<{
+    valid: boolean;
+    payload?: any;
+    isSysAdmin?: boolean;
+    error?: string;
+  }> {
+    return this.authService.validateToken(token);
+  }
+
+  // Alert Service
+  async getAllAlerts(): Promise<AlertDTO[]> {
+    return this.alertService.getAllAlerts();
+  }
+
+  async getAlertById(id: number): Promise<AlertDTO> {
+    return this.alertService.getAlertById(id);
+  }
+
+  async searchAlerts(query: AlertQueryDTO): Promise<PaginatedAlertsDTO> {
+    return this.alertService.searchAlerts(query);
+  }
+
+  async resolveAlert(
+    id: number,
+    resolvedBy: string,
+    status: string,
+  ): Promise<AlertDTO> {
+    return this.alertService.resolveAlert(id, resolvedBy, status);
+  }
+
+  async updateAlertStatus(id: number, status: string): Promise<AlertDTO> {
+    return this.alertService.updateAlertStatus(id, status);
+  }
+
+  // Query Service
+  async searchEvents(
+    query: string,
+    targetPage: number,
+    limit: number,
+  ): Promise<EventsResultDTO> {
+    return this.queryService.searchEvents(query, targetPage, limit);
+  }
+
+  async getOldEvents(hours: number): Promise<EventDTO[]> {
+    return this.queryService.getOldEvents(hours);
+  }
+
+  async getLastThreeEvents(): Promise<EventDTO[]> {
+    return this.queryService.getLastThreeEvents();
+  }
+
+  async getAllEvents(): Promise<EventDTO[]> {
+    return this.queryService.getAllEvents();
+  }
+
+  async getEventsCount(): Promise<number> {
+    return this.queryService.getEventsCount();
+  }
+
+  async getInfoCount(): Promise<number> {
+    return this.queryService.getInfoCount();
+  }
+
+  async getWarningCount(): Promise<number> {
+    return this.queryService.getWarningCount();
+  }
+
+  async getErrorCount(): Promise<number> {
+    return this.queryService.getErrorCount();
+  }
+
+  async getEventDistribution(): Promise<DistributionDTO> {
+    return this.queryService.getEventDistribution();
+  }
+
+  async getEventStatistics(): Promise<HourlyStatisticsDTO[]> {
+    return this.queryService.getEventStatistics();
+  }
+
+  async getAlertStatistics(): Promise<HourlyStatisticsDTO[]> {
+    return this.queryService.getAlertStatistics();
+  }
+
+  async getOldAlerts(hours: number): Promise<AlertDTO[]> {
+    return this.queryService.getOldAlerts(hours);
+  }
+
+  async getAllAlertsFromQuery(): Promise<AlertDTO[]> {
+    return this.queryService.getAllAlerts();
+  }
+
+  async searchAlertsFromQuery(
+    alertQueryDTO: AlertQueryDTO,
+  ): Promise<PaginatedAlertsDTO> {
+    return this.queryService.searchAlerts(alertQueryDTO);
+  }
+
+  async getAlertsCountFromQuery(): Promise<number> {
+    return this.queryService.getAlertsCount();
+  }
+
+  async getTotalEventCount(
+    entityType: RiskEntityType,
+    entityId: string,
+  ): Promise<number> {
+    return this.queryService.getTotalEventCount(entityType, entityId);
+  }
+
+  async getErrorEventCount(
+    entityType: RiskEntityType,
+    entityId: string,
+    hours: number,
+  ): Promise<number> {
+    return this.queryService.getErrorEventCount(entityType, entityId, hours);
+  }
+
+  async getEventRate(
+    entityType: RiskEntityType,
+    entityId: string,
+    hours: number,
+  ): Promise<number> {
+    return this.queryService.getEventRate(entityType, entityId, hours);
+  }
+
+  async getAlertsCountBySeverity(
+    entityType: RiskEntityType,
+    entityId: string,
+  ): Promise<Map<string, number>> {
+    return this.queryService.getAlertsCountBySeverity(entityType, entityId);
+  }
+
+  async getCriticalAlertsCount(
+    entityType: RiskEntityType,
+    entityId: string,
+  ): Promise<number> {
+    return this.queryService.getCriticalAlertsCount(entityType, entityId);
+  }
+
+  async getAnomalyRate(
+    entityType: RiskEntityType,
+    entityId: string,
+    hours: number,
+  ): Promise<number> {
+    return this.queryService.getAnomalyRate(entityType, entityId, hours);
+  }
+
+  async getBurstAnomaly(
+    entityType: RiskEntityType,
+    entityId: string,
+    hours: number,
+  ): Promise<boolean> {
+    return this.queryService.getBurstAnomaly(entityType, entityId, hours);
+  }
+
+  async getUniqueServicesCount(ipAddress: string): Promise<number> {
+    return this.queryService.getUniqueServicesCount(ipAddress);
+  }
+
+  async getUniqueIpsCount(serviceName: string): Promise<number> {
+    return this.queryService.getUniqueIpsCount(serviceName);
+  }
+
+  async getUniqueServices(): Promise<string[]> {
+    return this.queryService.getUniqueServices();
+  }
+
+  async getUniqueIps(): Promise<string[]> {
+    return this.queryService.getUniqueIps();
+  }
+
+  // Storage
+  async getAllArchives(): Promise<StorageLogResponseDTO[]> {
+    return this.storageService.getAllArchives();
+  }
+
+  async runArchiveProcess(): Promise<StorageLogResponseDTO> {
+    return this.storageService.runArchiveProcess();
+  }
+
+  async getArchiveStats(): Promise<ArchiveStatsDTO> {
+    return this.storageService.getArchiveStats();
+  }
+
+  async downloadArchive(id: string): Promise<ArrayBuffer> {
+    return this.storageService.downloadArchive(id);
+  }
+
+  async getTopArchives(
+    type: "events" | "alerts",
+    limit: number,
+  ): Promise<TopArchiveDTO[]> {
+    return this.storageService.getTopArchives(type, limit);
+  }
+
+  async getArchiveVolume(
+    period: "daily" | "monthly" | "yearly",
+  ): Promise<ArchiveVolumeDTO[]> {
+    return this.storageService.getArchiveVolume(period);
+  }
+
+  async getLargestArchive(): Promise<LargestArchiveDTO | null> {
+    return this.storageService.getLargestArchive();
+  }
+
+  // Analysis Engine
+  async analysisEngineNormalize(
+    rawMessage: string,
+  ): Promise<NormalizedEventDTO> {
+    return this.analysisService.normalize(rawMessage);
+  }
+
+  async analysisEngineDeleteCorrelationsByEventIds(
+    eventIds: number[],
+  ): Promise<number> {
+    return this.analysisService.deleteCorrelationsByEventIds(eventIds);
+  }
+
+  async analysisEngineGenerateBusinessInsights(
+    businessLLMInput: BusinessLLMInputDto,
+  ): Promise<BusinessResponseDto> {
+    return this.analysisService.analysisEngineGenerateBusinessInsights(
+      businessLLMInput,
+    );
+  }
+
+  // Backup
+  async runValidation(): Promise<boolean> {
+    return this.backupService.runValidation();
+  }
+
+  async getAllLogs(): Promise<BackupValidationLogDTO[]> {
+    return this.backupService.getAllLogs();
+  }
+
+  async getLastValidation(): Promise<BackupValidationLogDTO | null> {
+    return this.backupService.getLastValidation();
+  }
+
+  async getSummary(): Promise<BackupValidationResultDTO> {
+    return this.backupService.getSummary();
+  }
+
+  async getHealth(): Promise<BackupHealthDTO> {
+    return this.backupService.getHealth();
+  }
+
+  async getStats(rangeDays: number): Promise<BackupStatsDTO[]> {
+    return this.backupService.getStats(rangeDays);
+  }
+
+  // Insider
+  async getAllInsiderThreats(): Promise<InsiderThreatDTO[]> {
+    return await this.insiderThreatService.getAllThreats();
+  }
+
+  async getInsiderThreatById(id: number): Promise<InsiderThreatDTO> {
+    return await this.insiderThreatService.getThreatById(id);
+  }
+
+  async getInsiderThreatsByUserId(userId: number): Promise<InsiderThreatDTO[]> {
+    return await this.insiderThreatService.getThreatsByUserId(userId);
+  }
+
+  async getUnresolvedInsiderThreats(): Promise<InsiderThreatDTO[]> {
+    return await this.insiderThreatService.getUnresolvedThreats();
+  }
+
+  async searchInsiderThreats(
+    query: ThreatQueryDTO,
+  ): Promise<PaginatedThreatsDTO> {
+    return await this.insiderThreatService.searchThreats(query);
+  }
+
+  async resolveInsiderThreat(
+    id: number,
+    resolvedBy: string,
+    resolutionNotes?: string,
+  ): Promise<InsiderThreatDTO> {
+    return await this.insiderThreatService.resolveThreat(
+      id,
+      resolvedBy,
+      resolutionNotes,
+    );
+  }
+
+  async getAllUserRiskProfiles(): Promise<UserRiskProfileDTO[]> {
+    return await this.insiderThreatService.getAllUserRiskProfiles();
+  }
+
+  async getHighRiskUsers(): Promise<UserRiskProfileDTO[]> {
+    return await this.insiderThreatService.getHighRiskUsers();
+  }
+
+  async getUserRiskProfile(userId: number): Promise<UserRiskProfileDTO> {
+    return await this.insiderThreatService.getUserRiskProfile(userId);
+  }
+
+  async getUserRiskAnalysis(userId: number): Promise<UserRiskAnalysisDTO> {
+    return await this.insiderThreatService.getUserRiskAnalysis(userId);
+  }
+
+  async recalculateUserRisk(userId: number): Promise<UserRiskProfileDTO> {
+    return await this.insiderThreatService.recalculateUserRisk(userId);
+  }
+
+  // Risk Score
+  async calculateScore(
+    entityType: RiskEntityType,
+    entityId: string,
+    hours: number,
+  ): Promise<number> {
+    return await this.riskScoreService.calculateScore(
+      entityType,
+      entityId,
+      hours,
+    );
+  }
+
+  async getLatestScore(
+    entityType: RiskEntityType,
+    entityId: string,
+  ): Promise<number | null> {
+    return await this.riskScoreService.getLatestScore(entityType, entityId);
+  }
+
+  async getScoreHistory(
+    entityType: RiskEntityType,
+    entityId: string,
+    hours: number,
+  ): Promise<{ score: number; createdAt: Date }[]> {
+    return await this.riskScoreService.getScoreHistory(
+      entityType,
+      entityId,
+      hours,
+    );
+  }
+
+  async getGlobalScore(): Promise<number> {
+    return await this.riskScoreService.getGlobalScore();
+  }
+
+  //Integrity
+  async initializeHashChain(): Promise<{ message: string }> {
+    return await this.integrityService.initializeHashChain();
+  }
+
+  async verifyLogs(): Promise<any> {
+    return await this.integrityService.verifyLogs();
+  }
+
+  async getCompromisedLogs(): Promise<any[]> {
+    return await this.integrityService.getCompromisedLogs();
+  }
+
+  async getAllHashes(): Promise<{ eventId: number; hash: string }[]>{
+    return await this.integrityService.getAllHashes();
+  }
+
+  // Security maturity
+  async getSecurityMaturityCurrent(): Promise<SecuirtyMaturityCurrentDTO> {
+    return await this.securityMaturityService.getCurrent();
+  }
+
+  async getSecurityMaturityTrend(
+    metric: string,
+    period: string,
+  ): Promise<SecurityMaturityTrendDTO[]> {
+    return await this.securityMaturityService.getTrend(metric, period);
+  }
+
+  async getSecurityMaturityIncidentsByCategory(
+    period: string,
+  ): Promise<SecuirtyMaturityIncidentsByCategoryDTO[]> {
+    return await this.securityMaturityService.getIncidentsByCategory(period);
+  }
+
+  async getSecurityMaturityRecommendations(): Promise<
+    SecurityMaturityRecommendationDTO[]
+  > {
+    return this.securityMaturityService.getRecommendations();
+  }
+
+
+// UEBA
+async analyzeUserBehavior(userId: number): Promise<AnomalyResultDTO[]> {
+  return await this.uebaService.analyzeUserBehavior(userId);
+}
+
+async analyzeRoleBehavior(userRole: string): Promise<AnomalyResultDTO[]> {
+  return await this.uebaService.analyzeRoleBehavior(userRole);
+}
+
+async getAllAnomalies(): Promise<AnomalyResultDTO[]> {
+  return await this.uebaService.getAllAnomalies();
+}
+
+async getAllUserIds(): Promise<number[]> {
+  return await this.uebaService.getAllUserIds();
+}
+
+async getAllRoles(): Promise<string[]> {
+  return await this.uebaService.getAllRoles();
+}
+}
